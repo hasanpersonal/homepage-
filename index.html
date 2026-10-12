@@ -3,22 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Homepage</title>
+    <title>My Premium Homepage</title>
+    
+    <!-- CSS File -->
     <link rel="stylesheet" href="style.css">
+    
+    <!-- Google Fonts (Poppins) -->
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+    
     <!-- Font Awesome for Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
 
-    <!-- Top Right Edit Button -->
-    <button id="editBtn" class="edit-btn"><i class="fas fa-cog"></i></button>
+    <!-- Top Right Edit / Settings Button -->
+    <button id="editBtn" class="edit-btn" title="Settings"><i class="fas fa-cog"></i></button>
 
     <div class="main-container">
         <!-- Header Text -->
         <h1 id="headerText" class="header-text">Welcome Back</h1>
 
-        <!-- Google Search -->
+        <!-- Google Search Form -->
         <form id="searchForm" class="search-container">
             <i class="fas fa-search search-icon"></i>
             <input type="text" id="searchInput" placeholder="Search Google..." autocomplete="off">
@@ -26,7 +31,7 @@
 
         <!-- Apps/Websites Grid -->
         <div id="appsGrid" class="apps-grid">
-            <!-- Apps will be loaded here by JS -->
+            <!-- Apps will be loaded here automatically by script.js -->
         </div>
 
         <!-- Anime Release Schedule -->
@@ -47,33 +52,38 @@
     <div id="settingsModal" class="modal">
         <div class="modal-content glass-panel">
             <span id="closeModal" class="close">&times;</span>
-            <h2>Settings</h2>
+            <h2><i class="fas fa-sliders-h"></i> Settings</h2>
             
+            <!-- Edit Header Section -->
             <div class="settings-section">
-                <label>Header Text:</label>
+                <label>Change Header Text:</label>
                 <div style="display:flex; gap:10px;">
                     <input type="text" id="editHeaderText" placeholder="Enter new header">
-                    <button id="saveHeaderBtn" class="btn">Save</button>
+                    <button id="saveHeaderBtn" class="btn"><i class="fas fa-save"></i> Save</button>
                 </div>
             </div>
 
+            <!-- Add New Website Section -->
             <div class="settings-section">
                 <label>Add New Website:</label>
                 <input type="text" id="newAppName" placeholder="Website Name (e.g., YouTube)">
                 <input type="url" id="newAppUrl" placeholder="Website URL (e.g., https://youtube.com)">
-                <button id="addAppBtn" class="btn">Add Website</button>
+                <button id="addAppBtn" class="btn"><i class="fas fa-plus"></i> Add Website</button>
             </div>
 
+            <!-- Manage Websites Section -->
             <div class="settings-section">
-                <label>Manage Websites (Order & Delete):</label>
+                <label>Manage Websites (Reorder & Delete):</label>
                 <ul id="manageAppsList" class="manage-list">
-                    <!-- Manage apps list will be loaded here -->
+                    <!-- Manage apps list will be loaded here by script.js -->
                 </ul>
             </div>
         </div>
     </div>
 
-    <!-- Firebase Script as Module -->
+    <!-- Firebase and Main Script -->
+    <!-- type="module" is mandatory for Firebase CDN to work properly -->
     <script type="module" src="script.js"></script>
+    
 </body>
 </html>
