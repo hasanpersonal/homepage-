@@ -3,87 +3,74 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Homepage</title>
-    
-    <!-- CSS File -->
-    <link rel="stylesheet" href="style.css">
-    
-    <!-- Google Fonts (Poppins) -->
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
-    
-    <!-- Font Awesome for Icons -->
+    <meta name="theme-color" content="#060914">
+    <title>Hasan | Homepage</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@1,600;1,700&family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
+    <div class="bg" aria-hidden="true"><i></i><i></i><i></i></div>
 
-    <!-- Top Right Edit / Settings Button -->
-    <button id="editBtn" class="edit-btn" title="Settings"><i class="fas fa-cog"></i></button>
+    <button id="editBtn" class="edit-btn" title="Settings" aria-label="Open settings"><i class="fas fa-cog"></i></button>
 
-    <div class="main-container">
-        <!-- Header Text -->
-        <h1 id="headerText" class="header-text">Welcome Back</h1>
+    <main class="main-container">
+        <header class="hero">
+            <p class="greeting"><span class="dot"></span><span id="greeting">Welcome</span></p>
+            <h1 id="headerText" class="header-text" data-text="Welcome Back">Welcome Back</h1>
+            <div class="ornament" aria-hidden="true"><span></span><em></em><span></span></div>
+            <p id="when" class="when"></p>
+        </header>
 
-        <!-- Google Search Form -->
-        <form id="searchForm" class="search-container">
+        <!-- Works even without JS: plain GET to Google -->
+        <form id="searchForm" class="search-container" action="https://www.google.com/search" method="get">
             <i class="fas fa-search search-icon"></i>
-            <input type="text" id="searchInput" placeholder="Search Google..." autocomplete="off">
+            <input type="text" id="searchInput" name="q" placeholder="Search Google..." autocomplete="off" aria-label="Search Google">
+            <kbd title="Press / to search">/</kbd>
         </form>
 
-        <!-- Apps/Websites Grid -->
-        <div id="appsGrid" class="apps-grid">
-            <!-- Apps will be loaded here automatically by script.js -->
-        </div>
+        <section id="appsGrid" class="apps-grid" aria-label="Your websites"></section>
 
-        <!-- Anime Release Schedule -->
-        <div class="anime-container glass-panel">
+        <section class="anime-container glass-panel">
             <h2><i class="fas fa-tv"></i> Release Dates</h2>
-            <div id="animeList" class="anime-list">
-                <p>Loading schedule...</p>
-            </div>
-        </div>
-    </div>
+            <div id="animeList" class="anime-list"><p class="muted">Loading schedule...</p></div>
+        </section>
+    </main>
 
-    <!-- Footer -->
-    <footer>
-        <p>Homepage by Hasan | Project 2026</p>
-    </footer>
+    <footer><p>Homepage by Hasan | Project 2026</p></footer>
 
-    <!-- Settings Modal (Hidden by default) -->
-    <div id="settingsModal" class="modal">
+    <div id="settingsModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
         <div class="modal-content glass-panel">
-            <span id="closeModal" class="close">&times;</span>
-            <h2><i class="fas fa-sliders-h"></i> Settings</h2>
-            
-            <!-- Edit Header Section -->
+            <button id="closeModal" class="close" aria-label="Close settings">&times;</button>
+            <h2 id="settingsTitle"><i class="fas fa-sliders-h"></i> Settings</h2>
+
             <div class="settings-section">
-                <label>Change Header Text:</label>
-                <div style="display:flex; gap:10px;">
-                    <input type="text" id="editHeaderText" placeholder="Enter new header">
+                <label for="editHeaderText">Header text</label>
+                <div class="row">
+                    <input type="text" id="editHeaderText" placeholder="Enter new header" maxlength="40">
                     <button id="saveHeaderBtn" class="btn"><i class="fas fa-save"></i> Save</button>
                 </div>
             </div>
 
-            <!-- Add New Website Section -->
             <div class="settings-section">
-                <label>Add New Website:</label>
-                <input type="text" id="newAppName" placeholder="Website Name (e.g., YouTube)">
-                <input type="url" id="newAppUrl" placeholder="Website URL (e.g., https://youtube.com)">
-                <button id="addAppBtn" class="btn"><i class="fas fa-plus"></i> Add Website</button>
+                <label for="newAppName">Add a website</label>
+                <input type="text" id="newAppName" placeholder="Name (e.g., YouTube)" maxlength="30">
+                <input type="text" id="newAppUrl" inputmode="url" placeholder="URL (e.g., youtube.com)" aria-label="Website URL">
+                <button id="addAppBtn" class="btn"><i class="fas fa-plus"></i> Add website</button>
             </div>
 
-            <!-- Manage Websites Section -->
             <div class="settings-section">
-                <label>Manage Websites (Reorder & Delete):</label>
-                <ul id="manageAppsList" class="manage-list">
-                    <!-- Manage apps list will be loaded here by script.js -->
-                </ul>
+                <span class="label">Reorder or delete websites</span>
+                <ul id="manageAppsList" class="manage-list"></ul>
             </div>
         </div>
     </div>
 
-    <!-- Firebase and Main Script -->
-    <!-- type="module" is mandatory for Firebase CDN to work properly -->
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
     <script type="module" src="script.js"></script>
-    
 </body>
 </html>
