@@ -4,13 +4,22 @@ import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/fireb
 
 // Your Firebase Config
 const firebaseConfig = {
-    apiKey: "AIzaSyC_X7kI9zBBqRPbM3UKkB5ykz8y1c3QuW4",
-    authDomain: "homepage-imrul.firebaseapp.com",
-    projectId: "homepage-imrul",
-    storageBucket: "homepage-imrul.firebasestorage.app",
-    messagingSenderId: "1072413707621",
-    appId: "1:1072413707621:web:49d3a62212484a104d258c",
-    measurementId: "G-MH05RYKD1E"
+// Import the functions you need from the SDKs you need
+import { initializeApp } from "firebase/app";
+import { getAnalytics } from "firebase/analytics";
+ 
+  apiKey: "AIzaSyApS9a6cxv7O0LMARD7IKOr-WEQAtlq9fI",
+  authDomain: "mydata-81da6.firebaseapp.com",
+  projectId: "mydata-81da6",
+  storageBucket: "mydata-81da6.firebasestorage.app",
+  messagingSenderId: "577099961634",
+  appId: "1:577099961634:web:e7540f6d3e2d4f8c46417b",
+  measurementId: "G-TG577X5M4G"
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const analytics = getAnalytics(app);
 };
 
 // Initialize Firebase
