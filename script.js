@@ -1,6 +1,9 @@
-// 1. Firebase (CDN modules)
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+// ===== Google Drive setup: paste your OAuth Client ID here =====
+const GOOGLE_CLIENT_ID = "PASTE_YOUR_CLIENT_ID.apps.googleusercontent.com";
+const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.readonly";
 
 const firebaseConfig = {
   apiKey: "AIzaSyApS9a6cxv7O0LMARD7IKOr-WEQAtlq9fI",
@@ -16,19 +19,18 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const docRef = doc(db, "homepageData", "userSettings");
 
-// 2. State
 const DEFAULT_HEADER = "Welcome Back, Hasan";
-const CACHE_KEY = "homepage-cache";
-let currentHeader = DEFAULT_HEADER;
-let appsData = [];
+const CACHE_KEY = "homepage-cache", TOKEN_KEY = "homepage-drive-token";
+let currentHeader = DEFAULT_HEADER, appsData = [], driveFolder = "", tokenClient = null;
 
-// 3. DOM
 const $ = (id) => document.getElementById(id);
 const headerText = $('headerText'), searchInput = $('searchInput'), appsGrid = $('appsGrid');
-const animeList = $('animeList'), settingsModal = $('settingsModal'), editBtn = $('editBtn');
-const closeModal = $('closeModal'), editHeaderText = $('editHeaderText'), saveHeaderBtn = $('saveHeaderBtn');
+const settingsModal = $('settingsModal'), editBtn = $('editBtn'), closeModal = $('closeModal');
+const editHeaderText = $('editHeaderText'), saveHeaderBtn = $('saveHeaderBtn');
 const newAppName = $('newAppName'), newAppUrl = $('newAppUrl'), addAppBtn = $('addAppBtn');
+const driveFolderInput = $('driveFolderInput'), saveFolderBtn = $('saveFolderBtn');
 const manageAppsList = $('manageAppsList'), toastEl = $('toast');
+const driveList = $('driveList'), driveRefresh = $('driveRefresh'), driveSignOut = $('driveSignOut');
 
 function el(tag, className, text) {
     const n = document.createElement(tag);
@@ -36,7 +38,6 @@ function el(tag, className, text) {
     if (text !== undefined) n.textContent = text;
     return n;
 }
-
 let toastTimer;
 function toast(msg) {
     toastEl.textContent = msg;
@@ -44,76 +45,52 @@ function toast(msg) {
     clearTimeout(toastTimer);
     toastTimer = setTimeout(() => toastEl.classList.remove('show'), 2600);
 }
-
-// 4. Greeting + live date/time
-function tick() {
-    const now = new Date(), h = now.getHours();
-    $('greeting').textContent = h < 5 ? 'Still up' : h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
-    const date = now.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' });
-    const time = now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-    $('when').textContent = `${date}, ${time}`;
-}
-tick();
-setInterval(tick, 15000);
-
 function setHeader(text) {
     currentHeader = text;
     headerText.textContent = text;
     headerText.dataset.text = text;
 }
 
-// 5. Search (form also works natively), "/" focuses it
-$('searchForm').addEventListener('submit', (e) => {
-    if (!searchInput.value.trim()) e.preventDefault();
-});
+// ===== Search ("/" focuses it, Escape closes settings) =====
+$('searchForm').addEventListener('submit', (e) => { if (!searchInput.value.trim()) e.preventDefault(); });
 document.addEventListener('keydown', (e) => {
-    const typing = /^(INPUT|TEXTAREA)$/.test(document.activeElement.tagName);
-    if (e.key === '/' && !typing) { e.preventDefault(); searchInput.focus(); }
+    if (e.key === '/' && !/^(INPUT|TEXTAREA)$/.test(document.activeElement.tagName)) { e.preventDefault(); searchInput.focus(); }
     if (e.key === 'Escape') closeSettings();
 });
 
-// 6. Data: cache for instant paint, Firestore as source of truth
+// ===== Data: local cache paints instantly, Firestore is the source of truth =====
 function cacheState() {
-    try { localStorage.setItem(CACHE_KEY, JSON.stringify({ headerText: currentHeader, apps: appsData })); } catch {}
+    try { localStorage.setItem(CACHE_KEY, JSON.stringify({ headerText: currentHeader, apps: appsData, driveFolder })); } catch {}
 }
-
 async function loadData() {
     try {
         const snap = await getDoc(docRef);
         if (snap.exists()) {
-            const data = snap.data();
-            setHeader(data.headerText || DEFAULT_HEADER);
-            appsData = Array.isArray(data.apps) ? data.apps : [];
+            const d = snap.data();
+            setHeader(d.headerText || DEFAULT_HEADER);
+            appsData = Array.isArray(d.apps) ? d.apps : [];
+            driveFolder = d.driveFolder || "";
         } else {
-            await setDoc(docRef, { headerText: DEFAULT_HEADER, apps: [] });
+            await setDoc(docRef, { headerText: DEFAULT_HEADER, apps: [], driveFolder: "" });
         }
-        cacheState();
-        renderApps();
-        renderManageApps();
+        cacheState(); renderApps(); renderManageApps();
     } catch (err) {
         console.error("Error loading Firebase data:", err);
         toast("Couldn't load saved data. Showing the last version.");
     }
 }
-
 async function saveData() {
     try {
-        await setDoc(docRef, { headerText: currentHeader, apps: appsData }, { merge: true });
+        await setDoc(docRef, { headerText: currentHeader, apps: appsData, driveFolder }, { merge: true });
         return true;
-    } catch (err) {
-        console.error("Error saving data:", err);
-        return false;
-    }
+    } catch (err) { console.error("Error saving data:", err); return false; }
 }
-
 async function commit(okMsg) {
-    renderApps();
-    renderManageApps();
-    cacheState();
+    renderApps(); renderManageApps(); cacheState();
     toast((await saveData()) ? okMsg : "Couldn't save. Check your connection.");
 }
 
-// 7. URLs
+// ===== URLs & icons =====
 function normalizeUrl(raw) {
     let v = raw.trim();
     if (!/^https?:\/\//i.test(v)) v = 'https://' + v;
@@ -122,11 +99,17 @@ function normalizeUrl(raw) {
         return /^https?:$/.test(u.protocol) && u.hostname.includes('.') ? u.href : null;
     } catch { return null; }
 }
-function hostOf(url) {
-    try { return new URL(url).hostname; } catch { return url; }
+function iconSources(url) {
+    let host = url, origin = '';
+    try { const u = new URL(url); host = u.hostname; origin = u.origin; } catch {}
+    return [
+        `https://www.google.com/s2/favicons?domain=${encodeURIComponent(url)}&sz=128`,
+        `https://www.google.com/s2/favicons?domain=${encodeURIComponent(host)}&sz=128`,
+        `https://icons.duckduckgo.com/ip3/${host}.ico`,
+        origin && `${origin}/favicon.ico`
+    ].filter(Boolean);
 }
 
-// 8. Render apps (DOM APIs only, so names/URLs can't inject HTML)
 function renderApps() {
     appsGrid.replaceChildren();
     appsData.forEach((item) => {
@@ -136,14 +119,16 @@ function renderApps() {
 
         const icon = el('span', 'app-icon');
         const img = new Image();
+        const sources = iconSources(item.url);
+        let n = 0;
         img.alt = '';
-        img.loading = 'lazy';
-        img.src = `https://www.google.com/s2/favicons?domain=${encodeURIComponent(hostOf(item.url))}&sz=128`;
-        img.onerror = () => {
+        img.onerror = () => {               // try the next icon source, then fall back to a letter
+            if (++n < sources.length) { img.src = sources[n]; return; }
             img.remove();
             icon.classList.add('letter');
             icon.textContent = (item.name || '?').charAt(0).toUpperCase();
         };
+        img.src = sources[0];
         icon.append(img);
 
         a.append(icon, el('span', 'app-name', item.name));
@@ -153,13 +138,9 @@ function renderApps() {
 
 function renderManageApps() {
     manageAppsList.replaceChildren();
-    if (!appsData.length) {
-        manageAppsList.append(el('li', 'muted', 'No websites yet. Add one above.'));
-        return;
-    }
+    if (!appsData.length) { manageAppsList.append(el('li', 'muted', 'No websites yet. Add one above.')); return; }
     appsData.forEach((item, i) => {
-        const li = el('li');
-        const btns = el('div', 'action-btns');
+        const li = el('li'), btns = el('div', 'action-btns');
         [['up', 'fa-arrow-up', 'Move up'], ['down', 'fa-arrow-down', 'Move down'], ['delete', 'fa-trash', 'Delete']].forEach(([act, icon, label]) => {
             const b = el('button', act === 'delete' ? 'del' : '');
             b.type = 'button';
@@ -167,8 +148,7 @@ function renderManageApps() {
             b.dataset.index = i;
             b.title = label;
             b.setAttribute('aria-label', `${label}: ${item.name}`);
-            const ic = el('i', `fas ${icon}`);
-            b.append(ic);
+            b.append(el('i', `fas ${icon}`));
             btns.append(b);
         });
         li.append(el('span', '', item.name), btns);
@@ -192,11 +172,12 @@ manageAppsList.addEventListener('click', async (e) => {
     }
 });
 
-// 9. Settings modal
+// ===== Settings modal =====
 let lastFocus = null;
 function openSettings() {
     lastFocus = document.activeElement;
     editHeaderText.value = currentHeader;
+    driveFolderInput.value = driveFolder;
     settingsModal.classList.add('open');
     editHeaderText.focus();
 }
@@ -212,81 +193,121 @@ settingsModal.addEventListener('click', (e) => { if (e.target === settingsModal)
 saveHeaderBtn.addEventListener('click', async () => {
     const text = editHeaderText.value.trim();
     if (!text) return toast("Header can't be empty");
-    setHeader(text);
-    cacheState();
+    setHeader(text); cacheState();
     toast((await saveData()) ? 'Header saved' : "Couldn't save. Check your connection.");
 });
-editHeaderText.addEventListener('keydown', (e) => { if (e.key === 'Enter') saveHeaderBtn.click(); });
-
 addAppBtn.addEventListener('click', async () => {
-    const name = newAppName.value.trim();
-    const url = normalizeUrl(newAppUrl.value);
+    const name = newAppName.value.trim(), url = normalizeUrl(newAppUrl.value);
     if (!name || !newAppUrl.value.trim()) return toast('Enter both a name and a URL');
     if (!url) return toast("That URL doesn't look right (try youtube.com)");
     appsData.push({ id: Date.now(), name, url });
-    newAppName.value = '';
-    newAppUrl.value = '';
+    newAppName.value = newAppUrl.value = '';
     await commit('Website added');
 });
+editHeaderText.addEventListener('keydown', (e) => { if (e.key === 'Enter') saveHeaderBtn.click(); });
 [newAppName, newAppUrl].forEach((i) => i.addEventListener('keydown', (e) => { if (e.key === 'Enter') addAppBtn.click(); }));
 
-// 10. Release dates (today + next 2 days), cached 1 hour to respect Jikan rate limits
-const DAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-
-async function loadAnimeSchedule() {
-    const t = new Date().getDay();
-    const days = [['Today', 0], ['Tomorrow', 1], ['Day after', 2]].map(([label, n]) => ({ label, value: DAYS[(t + n) % 7] }));
-    const key = 'homepage-anime-' + new Date().toDateString();
-    let rows = null;
-
-    try {
-        const c = JSON.parse(localStorage.getItem(key));
-        if (c && Date.now() - c.t < 3600000) rows = c.rows;
-    } catch {}
-
-    if (!rows) {
-        rows = [];
-        for (const d of days) {
-            try {
-                const res = await fetch(`https://api.jikan.moe/v4/schedules?filter=${d.value}&limit=3`);
-                if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                const { data } = await res.json();
-                const titles = [...new Set((data || []).map((a) => a.title_english || a.title))].slice(0, 3);
-                if (titles.length) rows.push({ label: d.label, titles });
-            } catch (err) {
-                console.error(`Failed to load anime for ${d.label}:`, err);
-            }
-            await new Promise((r) => setTimeout(r, 400));
-        }
-        if (rows.length) {
-            try { localStorage.setItem(key, JSON.stringify({ t: Date.now(), rows })); } catch {}
-        }
-    }
-
-    animeList.replaceChildren();
-    if (!rows.length) {
-        animeList.append(el('p', 'muted', 'No schedule available right now.'));
-        return;
-    }
-    rows.forEach((r) => {
-        const item = el('div', 'anime-item');
-        const chips = el('div', 'chips');
-        r.titles.forEach((title) => chips.append(el('span', 'chip', title)));
-        item.append(el('span', 'anime-day', r.label), chips);
-        animeList.append(item);
-    });
+function parseFolder(v) {
+    v = v.trim();
+    const m = v.match(/folders\/([\w-]+)/) || v.match(/[?&]id=([\w-]+)/);
+    return m ? m[1] : /^[\w-]{10,}$/.test(v) ? v : '';
 }
+saveFolderBtn.addEventListener('click', async () => {
+    const v = driveFolderInput.value.trim(), id = parseFolder(v);
+    if (v && !id) return toast("That folder link doesn't look right");
+    driveFolder = id; cacheState(); loadDrive();
+    toast((await saveData()) ? 'Folder saved' : "Couldn't save. Check your connection.");
+});
 
-// 11. Start
+// ===== Google Drive panel (read-only) =====
+const FILE_TYPES = {
+    'application/vnd.google-apps.document': ['fa-file-lines', 'ft-doc'],
+    'application/vnd.google-apps.spreadsheet': ['fa-table', 'ft-sheet'],
+    'application/vnd.google-apps.presentation': ['fa-display', 'ft-slide'],
+    'application/vnd.google-apps.folder': ['fa-folder', 'ft-folder'],
+    'application/pdf': ['fa-file-pdf', 'ft-pdf']
+};
+const notConfigured = () => GOOGLE_CLIENT_ID.startsWith('PASTE');
+
+function getToken() {
+    try { const t = JSON.parse(localStorage.getItem(TOKEN_KEY)); return t && t.exp > Date.now() ? t.token : null; } catch { return null; }
+}
+function driveMessage(text, label, action) {
+    const box = el('div', 'drive-empty');
+    box.append(el('p', 'muted', text));
+    if (label) {
+        const b = el('button', 'btn', label);
+        b.type = 'button';
+        b.addEventListener('click', action);
+        box.append(b);
+    }
+    driveList.replaceChildren(box);
+    driveRefresh.hidden = driveSignOut.hidden = !getToken();
+}
+function connectDrive() {
+    if (!window.google?.accounts?.oauth2) return toast('Google sign-in is still loading. Try again in a moment.');
+    tokenClient ||= google.accounts.oauth2.initTokenClient({
+        client_id: GOOGLE_CLIENT_ID,
+        scope: DRIVE_SCOPE,
+        callback: (r) => {
+            if (r.error) return toast('Google sign-in was cancelled');
+            localStorage.setItem(TOKEN_KEY, JSON.stringify({ token: r.access_token, exp: Date.now() + (r.expires_in - 120) * 1000 }));
+            loadDrive();
+        }
+    });
+    tokenClient.requestAccessToken();
+}
+async function loadDrive() {
+    if (notConfigured()) return driveMessage('Add your Google Client ID at the top of script.js to turn this on.');
+    const token = getToken();
+    if (!token) return driveMessage('Connect Google Drive to see your files and notes here.', 'Connect Google Drive', connectDrive);
+
+    const q = driveFolder ? `'${driveFolder}' in parents and trashed=false` : 'trashed=false';
+    try {
+        const res = await fetch('https://www.googleapis.com/drive/v3/files?' + new URLSearchParams({
+            q, pageSize: 8, orderBy: 'modifiedTime desc', fields: 'files(id,name,mimeType,modifiedTime,webViewLink)'
+        }), { headers: { Authorization: `Bearer ${token}` } });
+
+        if (res.status === 401) { localStorage.removeItem(TOKEN_KEY); return driveMessage('Your Google session expired.', 'Reconnect', connectDrive); }
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+
+        const { files } = await res.json();
+        if (!files.length) return driveMessage('No files found here yet.');
+        driveList.replaceChildren(...files.map((f) => {
+            const [icon, cls] = FILE_TYPES[f.mimeType] || ['fa-file', 'ft-file'];
+            const a = el('a', 'drive-item');
+            a.href = f.webViewLink || '#';
+            a.target = '_blank';
+            a.rel = 'noopener';
+            const ic = el('i', `fas ${icon} ${cls}`);
+            a.append(ic, el('span', 'drive-name', f.name),
+                el('span', 'drive-date', new Date(f.modifiedTime).toLocaleDateString([], { month: 'short', day: 'numeric' })));
+            return a;
+        }));
+        driveRefresh.hidden = driveSignOut.hidden = false;
+    } catch (err) {
+        console.error('Drive error:', err);
+        driveMessage("Couldn't load Drive files.", 'Try again', loadDrive);
+    }
+}
+driveRefresh.addEventListener('click', loadDrive);
+driveSignOut.addEventListener('click', () => {
+    const t = getToken();
+    if (t && window.google?.accounts?.oauth2) google.accounts.oauth2.revoke(t, () => {});
+    localStorage.removeItem(TOKEN_KEY);
+    loadDrive();
+    toast('Google Drive disconnected');
+});
+
+// ===== Start =====
 setHeader(DEFAULT_HEADER);
 try {
     const c = JSON.parse(localStorage.getItem(CACHE_KEY));
     if (c) {
         setHeader(c.headerText || DEFAULT_HEADER);
         appsData = c.apps || [];
-        renderApps();
-        renderManageApps();
+        driveFolder = c.driveFolder || "";
+        renderApps(); renderManageApps();
     }
 } catch {}
-loadData();
-loadAnimeSchedule();
+loadData().then(loadDrive);
