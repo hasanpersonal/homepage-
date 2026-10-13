@@ -8,7 +8,7 @@
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@1,600;1,700&family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@1,700&family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="style.css">
 </head>
@@ -19,13 +19,10 @@
 
     <main class="main-container">
         <header class="hero">
-            <p class="greeting"><span class="dot"></span><span id="greeting">Welcome</span></p>
             <h1 id="headerText" class="header-text" data-text="Welcome Back">Welcome Back</h1>
             <div class="ornament" aria-hidden="true"><span></span><em></em><span></span></div>
-            <p id="when" class="when"></p>
         </header>
 
-        <!-- Works even without JS: plain GET to Google -->
         <form id="searchForm" class="search-container" action="https://www.google.com/search" method="get">
             <i class="fas fa-search search-icon"></i>
             <input type="text" id="searchInput" name="q" placeholder="Search Google..." autocomplete="off" aria-label="Search Google">
@@ -34,9 +31,15 @@
 
         <section id="appsGrid" class="apps-grid" aria-label="Your websites"></section>
 
-        <section class="anime-container glass-panel">
-            <h2><i class="fas fa-tv"></i> Release Dates</h2>
-            <div id="animeList" class="anime-list"><p class="muted">Loading schedule...</p></div>
+        <section class="drive-panel glass-panel">
+            <div class="panel-head">
+                <h2><i class="fab fa-google-drive"></i> Google Drive</h2>
+                <div class="panel-actions">
+                    <button id="driveRefresh" class="icon-btn" title="Refresh" aria-label="Refresh files" hidden><i class="fas fa-rotate"></i></button>
+                    <button id="driveSignOut" class="icon-btn" title="Disconnect" aria-label="Disconnect Google Drive" hidden><i class="fas fa-link-slash"></i></button>
+                </div>
+            </div>
+            <div id="driveList" class="drive-list"></div>
         </section>
     </main>
 
@@ -63,6 +66,14 @@
             </div>
 
             <div class="settings-section">
+                <label for="driveFolderInput">Drive folder for notes (optional)</label>
+                <div class="row">
+                    <input type="text" id="driveFolderInput" placeholder="Folder link or ID (empty = recent files)">
+                    <button id="saveFolderBtn" class="btn"><i class="fas fa-save"></i> Save</button>
+                </div>
+            </div>
+
+            <div class="settings-section">
                 <span class="label">Reorder or delete websites</span>
                 <ul id="manageAppsList" class="manage-list"></ul>
             </div>
@@ -71,6 +82,7 @@
 
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script type="module" src="script.js"></script>
 </body>
 </html>
